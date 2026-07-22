@@ -1,0 +1,29 @@
+name: Publish to NuGet
+
+on:
+  release:
+    types: [published] # Triggers when you publish a new release in GitHub
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    # Required to authenticate with NuGet.org via Trusted Publishing
+    permissions:
+      id-token: write
+      contents: read 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x' # Adjust to match your SDK
+
+      - name: Pack the project
+        run: dotnet pack --configuration Release
+
+      - name: Push to NuGet
+        run: dotnet nuget push **/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate
