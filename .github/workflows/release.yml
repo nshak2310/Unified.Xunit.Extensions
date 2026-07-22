@@ -7,6 +7,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: production
     
     # Required to authenticate with NuGet.org via Trusted Publishing
     permissions:
