@@ -10,6 +10,7 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>Unified.Xunit.Extensions</PackageId>
+    <Version>1.1.0</Version>
 	<Authors>Nia Shakarishvili</Authors>
     <Title>Unified.Xunit.Extensions</Title>
     <Description>
