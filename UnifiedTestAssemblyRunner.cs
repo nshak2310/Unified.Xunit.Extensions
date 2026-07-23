@@ -1,4 +1,5 @@
 using Meziantou.Xunit;
+using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
@@ -31,13 +32,18 @@ public class UnifiedTestAssemblyRunner : ParallelTestAssemblyRunner
     {
         await base.AfterTestAssemblyStartingAsync().ConfigureAwait(false);
 
-        await Aggregator.RunAsync(() =>
+        await Aggregator.RunAsync(async () =>
         {
             foreach (var fixtureType in DiscoverAssemblyFixtureTypes())
             {
                 var instance = Activator.CreateInstance(fixtureType)
                     ?? throw new InvalidOperationException(
                         $"Activator.CreateInstance returned null for assembly fixture type '{fixtureType.FullName}'.");
+
+                if (instance is IAsyncLifetime asyncLifetime)
+                {
+                    await asyncLifetime.InitializeAsync().ConfigureAwait(false);
+                }
 
                 AssemblyFixtureRegistry.Register(fixtureType, instance);
             }
@@ -78,16 +84,28 @@ public class UnifiedTestAssemblyRunner : ParallelTestAssemblyRunner
     /// <summary>
     /// Finds every distinct closed fixture type <c>TFixture</c> referenced by an
     /// <c>IAssemblyFixture&lt;TFixture&gt;</c> implementation anywhere in the test assembly.
+    /// Discovers fixtures registered via Assembly Attribute ([assembly: AssemblyFixture(typeof(...))])
     /// </summary>
     private IEnumerable<Type> DiscoverAssemblyFixtureTypes()
     {
         var assembly = ((IReflectionAssemblyInfo)TestAssembly.Assembly).Assembly;
 
-        return assembly.GetTypes()
+        // 1. Discover fixtures registered via Assembly Attribute ([assembly: AssemblyFixture(typeof(...))])
+        var attributeFixtureTypes = assembly.GetCustomAttributes(false)
+            .Where(attr => attr.GetType().Name == "AssemblyFixtureAttribute")
+            .Select(attr => (Type)attr.GetType().GetProperty("FixtureType")?.GetValue(attr)!)
+            .Where(t => t != null);
+
+        // 2. Discover fixtures registered via Class Interface (IAssemblyFixture<T>)
+        var interfaceFixtureTypes = assembly.GetTypes()
             .Where(type => type is { IsAbstract: false, IsInterface: false })
             .SelectMany(type => type.GetInterfaces())
             .Where(iface => iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IAssemblyFixture<>))
-            .Select(iface => iface.GetGenericArguments()[0])
+            .Select(iface => iface.GetGenericArguments()[0]);
+
+        // 3. Combine both lists, filter out nulls, and ensure each type is registered only once
+        return attributeFixtureTypes
+            .Concat(interfaceFixtureTypes)
             .Distinct();
     }
 }

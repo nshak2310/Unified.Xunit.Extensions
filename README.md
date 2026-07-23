@@ -78,6 +78,11 @@ public class OrderTests : IAssemblyFixture<DatabaseFixture>
   dispose it after the last one finishes.
 - Any number of classes can implement `IAssemblyFixture<TFixture>` for the same `TFixture` — they all share one
   instance.
+- Alternative: Registering via Assembly Attribute (xUnit v3 Style)
+Instead of implementing the marker interface on a test class, you can register your assembly-level fixture directly at the assembly level using the `[assembly: AssemblyFixture(...)]` attribute:
+
+```csharp
+[assembly: AssemblyFixture(typeof(MySharedFixture))]
 - Unlike `xunit.assemblyfixture`, the fixture is **never constructor-injected** into your test class. Class
   construction is handled by Meziantou's own class runner, which only understands xUnit's native
   `IClassFixture<T>` / `ICollectionFixture<T>` wiring — so always fetch the instance from
